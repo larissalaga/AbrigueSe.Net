@@ -91,11 +91,11 @@ namespace AbrigueSe.Controllers
 
         // PUT: api/Estados/{id}
         [HttpPut("{id}")]
-        [ProducesResponseType(204)]
+        [ProducesResponseType(typeof(EstadoGetDto), 200)]
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
-        public async Task<IActionResult> UpdateEstado(int id, [FromBody] EstadoDto estadoDto)
+        public async Task<ActionResult<EstadoGetDto>> UpdateEstado(int id, [FromBody] EstadoDto estadoDto)
         {
             if (!ModelState.IsValid)
             {
@@ -103,21 +103,31 @@ namespace AbrigueSe.Controllers
             }
             try
             {
-                var estadoExistente = await _estadoRepository.GetById(id);
-                if (estadoExistente == null)
-                {
-                    return NotFound($"Estado com ID {id} não encontrado para atualização.");
-                }
-
-                await _estadoRepository.Update(estadoDto, id);
-                return NoContent();
+                // The repository's Update method is expected to return the updated Estado entity.
+                var updatedEstado = await _estadoRepository.Update(estadoDto, id);
+                // No need to call GetById separately if Update returns the entity.
+                // If _estadoRepository.Update returns void or bool, then a GetById call would be needed here.
+                // Assuming _estadoRepository.Update now returns the updated Estado:
+                
+                var estadoGetDto = _mapper.Map<EstadoGetDto>(updatedEstado);
+                return Ok(estadoGetDto);
+            }
+            catch (KeyNotFoundException ex) // Specific exception from repository for not found
+            {
+                return NotFound(ex.Message);
             }
             catch (DbUpdateConcurrencyException)
             {
                  return StatusCode(409, "Conflito de concorrência ao atualizar o estado. Tente novamente.");
             }
-            catch (Exception ex)
+            catch (Exception ex) // General exception for other errors, including validation from repo
             {
+                // Check if the exception message indicates a business rule violation (e.g., duplicate name)
+                if (ex.Message.Contains("J existe um estado com este nome neste pas") || 
+                    ex.Message.Contains("Pas associado no encontrado"))
+                {
+                    return BadRequest(ex.Message);
+                }
                 return StatusCode(500, $"Erro interno ao atualizar o estado: {ex.Message}");
             }
         }

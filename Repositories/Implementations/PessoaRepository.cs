@@ -105,6 +105,61 @@ namespace AbrigueSe.Repositories.Implementations
             return pessoa;
         }
 
+        public async Task<PessoaGetDto> GetDetailsByIdAsync(int id)
+        {
+            var pessoa = await _context.Pessoa
+                                .Include(p => p.Endereco)
+                                    .ThenInclude(e => e.Cidade)
+                                        .ThenInclude(c => c.Estado)
+                                            .ThenInclude(es => es.Pais)
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(p => p.IdPessoa == id);
+
+            if (pessoa == null)
+            {
+                throw new KeyNotFoundException($"Pessoa com ID {id} não encontrada.");
+            }
+
+            // Mapeamento base da Pessoa para PessoaGetDto
+            var pessoaGetDto = _mapper.Map<PessoaGetDto>(pessoa);
+
+            // Buscar Usuario associado
+            var usuario = await _context.Usuario
+                                .Include(u => u.TipoUsuario)
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(u => u.IdPessoa == id);
+            if (usuario != null)
+            {
+                pessoaGetDto.Usuario = _mapper.Map<Usuario>(usuario);
+            }
+
+            // Buscar último CheckIn e AbrigoAtual
+            var ultimoCheckIn = await _context.CheckIn
+                                        .Include(ci => ci.Abrigo)
+                                            .ThenInclude(a => a.Endereco)
+                                                .ThenInclude(e => e.Cidade)
+                                                    .ThenInclude(c => c.Estado)
+                                                        .ThenInclude(es => es.Pais)
+                                        .Where(ci => ci.IdPessoa == id)
+                                        .OrderByDescending(ci => ci.DtEntrada)
+                                        .FirstOrDefaultAsync();
+            
+            if (ultimoCheckIn != null)
+            {
+                pessoaGetDto.UltimoCheckIn = _mapper.Map<CheckIn>(ultimoCheckIn);
+                if (ultimoCheckIn.Abrigo != null) // Garante que o abrigo não é nulo
+                {
+                    pessoaGetDto.AbrigoAtual = _mapper.Map<Abrigo>(ultimoCheckIn.Abrigo);
+                }
+            }
+            
+            // O Endereco da Pessoa já foi incluído e mapeado pelo _mapper.Map<PessoaGetDto>(pessoa)
+            // se o mapeamento de Pessoa para PessoaGetDto incluir .ForMember(dest => dest.Endereco, opt => opt.MapFrom(src => src.Endereco))
+            // e Endereco para EnderecoGetDto estiver configurado.
+
+            return pessoaGetDto;
+        }
+
         public async Task<Pessoa> UpdateById(int id, PessoaDto pessoaDto)
         {
             var pessoa = await _context.Pessoa.FirstOrDefaultAsync(x => x.IdPessoa == id);

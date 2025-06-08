@@ -10,11 +10,12 @@ namespace AbrigueSe.Mappings
         public MappingProfile()
         {
             // Pais
-            CreateMap<PaisDto, Pais>();
+            CreateMap<PaisCreateDto, Pais>();
+            CreateMap<PaisUpdateDto, Pais>();
             CreateMap<Pais, PaisGetDto>();
 
             // Estado
-            CreateMap<EstadoDto, Estado>();
+            CreateMap<EstadoDto, Estado>(); // For Create/Update
             CreateMap<Estado, EstadoGetDto>()
                 .ForMember(dest => dest.Pais, opt => opt.MapFrom(src => src.Pais)); // Map the Pais object
 
@@ -31,7 +32,13 @@ namespace AbrigueSe.Mappings
             // Pessoa
             CreateMap<PessoaDto, Pessoa>();
             CreateMap<Pessoa, PessoaGetDto>()
-                .ForMember(dest => dest.Endereco, opt => opt.MapFrom(src => src.Endereco));
+                .ForMember(dest => dest.Endereco, opt => opt.MapFrom(src => src.Endereco))
+                // As propriedades AbrigoAtual, Usuario e UltimoCheckIn serão preenchidas manualmente no repositório.
+                // Se desejar que o AutoMapper tente mapeá-las (caso as entidades estejam carregadas na Pessoa de origem),
+                // você pode adicionar os mapeamentos aqui, mas o método GetDetailsByIdAsync já cuida disso.
+                .ForMember(dest => dest.AbrigoAtual, opt => opt.Ignore()) // Ignora para preenchimento manual
+                .ForMember(dest => dest.Usuario, opt => opt.Ignore())     // Ignora para preenchimento manual
+                .ForMember(dest => dest.UltimoCheckIn, opt => opt.Ignore());// Ignora para preenchimento manual
                 
 
             // TipoUsuario

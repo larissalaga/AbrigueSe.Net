@@ -93,6 +93,29 @@ namespace AbrigueSe.Controllers
             }
         }
 
+        // GET: api/Pessoas/{id}/details
+        [HttpGet("{id}/details")]
+        [ProducesResponseType(typeof(PessoaGetDto), 200)]
+        [ProducesResponseType(404)]
+        [ProducesResponseType(500)]
+        public async Task<ActionResult<PessoaGetDto>> GetPessoaDetailsById(int id)
+        {
+            try
+            {
+                var pessoaGetDto = await _pessoaRepository.GetDetailsByIdAsync(id);
+                return Ok(pessoaGetDto);
+            }
+            catch (KeyNotFoundException knfex)
+            {
+                return NotFound(knfex.Message);
+            }
+            catch (Exception ex)
+            {
+                // TODO: Log the exception ex
+                return StatusCode(500, $"Erro interno ao buscar detalhes da pessoa: {ex.Message}");
+            }
+        }
+
         // PUT: api/Pessoas/{id}
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(PessoaGetDto), 200)]

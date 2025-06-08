@@ -7,10 +7,10 @@ namespace AbrigueSe.Repositories.Interfaces
 {
     public interface IPaisRepository
     {
-        Task<List<Pais>> GetAll();
-        Task<Pais> GetById(int id);
-        Task<Pais> Create(PaisDto paisDto); // Changed to Task<Pais>
-        Task<Pais> Update(PaisDto paisDto, int id);  // Changed to Task<Pais>
+        Task<Pais> Create(PaisCreateDto paisDto); // Changed to PaisCreateDto, returns Pais
+        Task<Pais> Update(PaisUpdateDto paisDto, int id); // Changed to PaisUpdateDto, returns Pais
         Task<bool> Delete(int id);
+        Task<List<Pais>> GetAll(); // Returns List<Pais>
+        Task<Pais> GetById(int id); // Returns Pais
     }
 }

@@ -21,10 +21,10 @@ namespace AbrigueSe.Repositories.Implementations
             _mapper = mapper;
         }
 
-        public async Task<Pais> Create(PaisDto paisDto) // Assuming PaisDto for creation
+        public async Task<Pais> Create(PaisCreateDto paisDto) // Changed to PaisCreateDto
         {
-            var existingPais = await _context.Pais.FirstOrDefaultAsync(p => p.NmPais == paisDto.NmPais);
-            if (existingPais != null)
+            var paisExists = await _context.Pais.FirstOrDefaultAsync(p => p.NmPais == paisDto.NmPais);
+            if (paisExists != null)
             {
                 throw new System.Exception("Já existe um país com este nome.");
             }
@@ -36,7 +36,7 @@ namespace AbrigueSe.Repositories.Implementations
             _context.Pais.Add(newPais);
             await _context.SaveChangesAsync();
 
-            return await GetById(newPais.IdPais); // Return the created Pais object
+            return newPais; // Return the created Pais object
         }
 
         public async Task<bool> Delete(int id)
@@ -44,7 +44,7 @@ namespace AbrigueSe.Repositories.Implementations
             var pais = await _context.Pais.FirstOrDefaultAsync(p => p.IdPais == id);
             if (pais == null)
             {
-                return false;
+                throw new KeyNotFoundException("País não encontrado.");
             }
 
             var dependentEstadoExists = await _context.Estado.FirstOrDefaultAsync(e => e.IdPais == id);
@@ -59,7 +59,9 @@ namespace AbrigueSe.Repositories.Implementations
 
         public async Task<List<Pais>> GetAll()
         {
-            return await _context.Pais.OrderBy(p => p.IdPais).ToListAsync();
+            return await _context.Pais.OrderBy(p => p.IdPais)
+                .OrderBy(p => p.NmPais)
+                .ToListAsync();
         }
 
         public async Task<Pais> GetById(int id)
@@ -72,7 +74,7 @@ namespace AbrigueSe.Repositories.Implementations
             return pais;
         }
 
-        public async Task<Pais> Update(PaisDto paisDto, int id) // Assuming PaisDto for update
+        public async Task<Pais> Update(PaisUpdateDto paisDto, int id) // Changed to PaisUpdateDto
         {
             var pais = await _context.Pais.FirstOrDefaultAsync(p => p.IdPais == id);
             if (pais == null)
@@ -82,8 +84,8 @@ namespace AbrigueSe.Repositories.Implementations
 
             if (pais.NmPais != paisDto.NmPais)
             {
-                var existingPaisWithName = await _context.Pais.FirstOrDefaultAsync(p => p.NmPais == paisDto.NmPais && p.IdPais != id);
-                if (existingPaisWithName != null)
+                var conflictingPaisExists = await _context.Pais.FirstOrDefaultAsync(p => p.NmPais == paisDto.NmPais && p.IdPais != id);
+                if (conflictingPaisExists != null)
                 {
                     throw new System.Exception("Já existe outro país com este nome.");
                 }
@@ -92,7 +94,7 @@ namespace AbrigueSe.Repositories.Implementations
             _mapper.Map(paisDto, pais); // Update existing pais object
             await _context.SaveChangesAsync();
 
-            return await GetById(id); // Return the updated Pais object
+            return pais; // Return the updated Pais object
         }
     }
 }
