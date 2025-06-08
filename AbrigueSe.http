@@ -1,0 +1,6 @@
+@AbrigueSe_HostAddress = http://localhost:5178
+
+GET {{AbrigueSe_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
