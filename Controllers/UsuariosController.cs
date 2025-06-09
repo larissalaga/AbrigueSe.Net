@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace AbrigueSe.Controllers
 {
+    /// <summary>
+    /// Gerencia as operações relacionadas a usuários.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class UsuariosController : ControllerBase
@@ -22,7 +25,23 @@ namespace AbrigueSe.Controllers
             _mapper = mapper;
         }
 
+        private void AddLinksToUsuario(UsuarioGetDto usuarioDto)
+        {
+            if (usuarioDto == null) return;
+
+            usuarioDto.Links.Add(new LinkDto(Url.Link(nameof(GetUsuarioById), new { id = usuarioDto.IdUsuario }), "self", "GET"));
+            usuarioDto.Links.Add(new LinkDto(Url.Link(nameof(UpdateUsuario), new { id = usuarioDto.IdUsuario }), "update_usuario", "PUT"));
+            usuarioDto.Links.Add(new LinkDto(Url.Link(nameof(DeleteUsuario), new { id = usuarioDto.IdUsuario }), "delete_usuario", "DELETE"));
+        }
+
         // POST: api/Usuarios
+        /// <summary>
+        /// Cria um novo usuário.
+        /// </summary>
+        /// <param name="usuarioCreateDto">Dados para a criação do usuário.</param>
+        /// <response code="201">Usuário criado com sucesso. Retorna o usuário criado.</response>
+        /// <response code="400">Dados inválidos para a criação do usuário.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPost]
         [ProducesResponseType(typeof(UsuarioGetDto), 201)]
         [ProducesResponseType(400)]
@@ -37,6 +56,7 @@ namespace AbrigueSe.Controllers
             {
                 var usuarioModel = await _usuarioRepository.Create(usuarioCreateDto);
                 var usuarioGetDto = _mapper.Map<UsuarioGetDto>(usuarioModel);
+                AddLinksToUsuario(usuarioGetDto);
 
                 return CreatedAtAction(nameof(GetUsuarioById), new { id = usuarioGetDto.IdUsuario }, usuarioGetDto);
             }
@@ -55,6 +75,11 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Usuarios/getAll
+        /// <summary>
+        /// Obtém todos os usuários cadastrados.
+        /// </summary>
+        /// <response code="200">Lista de usuários retornada com sucesso.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("getAll")] // Rota alterada
         [ProducesResponseType(typeof(List<UsuarioGetDto>), 200)]
         [ProducesResponseType(500)]
@@ -64,6 +89,7 @@ namespace AbrigueSe.Controllers
             {
                 var usuarios = await _usuarioRepository.GetAll();
                 var usuariosGetDto = _mapper.Map<List<UsuarioGetDto>>(usuarios);
+                usuariosGetDto.ForEach(AddLinksToUsuario);
                 return Ok(usuariosGetDto);
             }
             catch (Exception ex)
@@ -74,6 +100,13 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Usuarios/{id}
+        /// <summary>
+        /// Obtém um usuário específico pelo seu ID.
+        /// </summary>
+        /// <param name="id">ID do usuário a ser obtido.</param>
+        /// <response code="200">Usuário retornado com sucesso.</response>
+        /// <response code="404">Usuário não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(UsuarioGetDto), 200)]
         [ProducesResponseType(404)]
@@ -84,6 +117,7 @@ namespace AbrigueSe.Controllers
             {
                 var usuario = await _usuarioRepository.GetById(id);
                 var usuarioGetDto = _mapper.Map<UsuarioGetDto>(usuario);
+                AddLinksToUsuario(usuarioGetDto);
                 return Ok(usuarioGetDto);
             }
             catch (Exception ex)
@@ -94,6 +128,13 @@ namespace AbrigueSe.Controllers
         }
         
         // GET: api/Usuarios/email/{email}
+        /// <summary>
+        /// Obtém um usuário específico pelo seu endereço de e-mail.
+        /// </summary>
+        /// <param name="email">E-mail do usuário a ser obtido.</param>
+        /// <response code="200">Usuário retornado com sucesso.</response>
+        /// <response code="404">Usuário não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("email/{email}")]
         [ProducesResponseType(typeof(UsuarioGetDto), 200)]
         [ProducesResponseType(404)]
@@ -108,6 +149,7 @@ namespace AbrigueSe.Controllers
                     return NotFound($"Usuário com e-mail {email} não encontrado.");
                 }
                 var usuarioGetDto = _mapper.Map<UsuarioGetDto>(usuario);
+                AddLinksToUsuario(usuarioGetDto);
                 return Ok(usuarioGetDto);
             }
             catch (Exception ex)
@@ -118,6 +160,15 @@ namespace AbrigueSe.Controllers
 
 
         // PUT: api/Usuarios/{id}
+        /// <summary>
+        /// Atualiza um usuário existente.
+        /// </summary>
+        /// <param name="id">ID do usuário a ser atualizado.</param>
+        /// <param name="usuarioUpdateDto">Dados para a atualização do usuário.</param>
+        /// <response code="200">Usuário atualizado com sucesso. Retorna o usuário atualizado.</response>
+        /// <response code="400">Dados inválidos para a atualização.</response>
+        /// <response code="404">Usuário não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(UsuarioGetDto), 200)]
         [ProducesResponseType(400)]
@@ -155,13 +206,13 @@ namespace AbrigueSe.Controllers
                 var sucesso = await _usuarioRepository.DeleteById(id);
                 if (!sucesso)
                 {
-                     return NotFound($"Usuário com ID {id} não encontrado.");
+                    return NotFound($"Usuário com ID {id} não encontrado.");
                 }
                 return NoContent();
             }
             catch (Exception ex)
             {
-                 if (ex.Message.Contains("Usuário não encontrado")) return NotFound(ex.Message);
+                if (ex.Message.Contains("Usuário não encontrado")) return NotFound(ex.Message);
                 return StatusCode(500, $"Erro interno ao excluir o usuário: {ex.Message}");
             }
         }

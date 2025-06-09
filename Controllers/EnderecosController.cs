@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 
 namespace AbrigueSe.Controllers
 {
+    /// <summary>
+    /// Gerencia as operações relacionadas a endereços.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class EnderecosController : ControllerBase
@@ -24,7 +27,24 @@ namespace AbrigueSe.Controllers
             _mapper = mapper;
         }
 
+        private void AddLinksToEndereco(EnderecoGetDto enderecoDto)
+        {
+            if (enderecoDto == null) return;
+
+            enderecoDto.Links.Add(new LinkDto(Url.Link(nameof(GetEnderecoById), new { id = enderecoDto.IdEndereco }), "self", "GET"));
+            enderecoDto.Links.Add(new LinkDto(Url.Link(nameof(UpdateEndereco), new { id = enderecoDto.IdEndereco }), "update_endereco", "PUT"));
+            enderecoDto.Links.Add(new LinkDto(Url.Link(nameof(DeleteEndereco), new { id = enderecoDto.IdEndereco }), "delete_endereco", "DELETE"));
+            // Adicionar links para cidade, estado, país, se aplicável e se houver controllers para eles
+        }
+
         // POST: api/Enderecos
+        /// <summary>
+        /// Cria um novo endereço.
+        /// </summary>
+        /// <param name="enderecoDto">Dados para a criação do endereço.</param>
+        /// <response code="201">Endereço criado com sucesso. Retorna o endereço criado.</response>
+        /// <response code="400">Dados inválidos para a criação do endereço.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPost]
         [ProducesResponseType(typeof(EnderecoGetDto), 201)]
         [ProducesResponseType(400)]
@@ -39,6 +59,7 @@ namespace AbrigueSe.Controllers
             {   
                 var enderecoModel = await _enderecoRepository.Create(enderecoDto);
                 var enderecoGetDto = _mapper.Map<EnderecoGetDto>(enderecoModel);
+                AddLinksToEndereco(enderecoGetDto);
 
                 return CreatedAtAction(nameof(GetEnderecoById), new { id = enderecoGetDto.IdEndereco }, enderecoGetDto);
             }
@@ -49,6 +70,11 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Enderecos/getAll
+        /// <summary>
+        /// Obtém todos os endereços cadastrados.
+        /// </summary>
+        /// <response code="200">Lista de endereços retornada com sucesso.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("getAll")] // Rota alterada
         [ProducesResponseType(typeof(List<EnderecoGetDto>), 200)]
         [ProducesResponseType(500)]
@@ -58,6 +84,7 @@ namespace AbrigueSe.Controllers
             {
                 var enderecos = await _enderecoRepository.GetAll();
                 var enderecosGetDto = _mapper.Map<List<EnderecoGetDto>>(enderecos);
+                enderecosGetDto.ForEach(AddLinksToEndereco);
                 return Ok(enderecosGetDto);
             }
             catch (Exception ex)
@@ -67,6 +94,13 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Enderecos/{id}
+        /// <summary>
+        /// Obtém um endereço específico pelo seu ID.
+        /// </summary>
+        /// <param name="id">ID do endereço a ser obtido.</param>
+        /// <response code="200">Endereço retornado com sucesso.</response>
+        /// <response code="404">Endereço não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(EnderecoGetDto), 200)]
         [ProducesResponseType(404)]
@@ -81,6 +115,7 @@ namespace AbrigueSe.Controllers
                     return NotFound($"Endereço com ID {id} não encontrado.");
                 }
                 var enderecoGetDto = _mapper.Map<EnderecoGetDto>(endereco);
+                AddLinksToEndereco(enderecoGetDto);
                 return Ok(enderecoGetDto);
             }
             catch (Exception ex)
@@ -90,8 +125,18 @@ namespace AbrigueSe.Controllers
         }
 
         // PUT: api/Enderecos/{id}
+        /// <summary>
+        /// Atualiza um endereço existente.
+        /// </summary>
+        /// <param name="id">ID do endereço a ser atualizado.</param>
+        /// <param name="enderecoDto">Dados para a atualização do endereço.</param>
+        /// <response code="200">Endereço atualizado com sucesso. Retorna o endereço atualizado.</response>
+        /// <response code="400">Dados inválidos para a atualização.</response>
+        /// <response code="404">Endereço não encontrado.</response>
+        /// <response code="409">Conflito de concorrência ao atualizar o endereço.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPut("{id}")]
-        [ProducesResponseType(204)]
+        [ProducesResponseType(typeof(EnderecoGetDto), 200)] // Alterado de 204 para 200 para retornar o objeto atualizado
         [ProducesResponseType(400)]
         [ProducesResponseType(404)]
         [ProducesResponseType(500)]
@@ -111,6 +156,7 @@ namespace AbrigueSe.Controllers
 
                 var enderecoAtualizado = await _enderecoRepository.Update(enderecoDto, id);
                 var enderecoGetDto = _mapper.Map<EnderecoGetDto>(enderecoAtualizado);
+                AddLinksToEndereco(enderecoGetDto);
                 return Ok(enderecoGetDto);
             }
             catch (DbUpdateConcurrencyException)
@@ -124,6 +170,13 @@ namespace AbrigueSe.Controllers
         }
 
         // DELETE: api/Enderecos/{id}
+        /// <summary>
+        /// Exclui um endereço existente.
+        /// </summary>
+        /// <param name="id">ID do endereço a ser excluído.</param>
+        /// <response code="204">Endereço excluído com sucesso.</response>
+        /// <response code="404">Endereço não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpDelete("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]

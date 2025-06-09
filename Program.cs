@@ -10,8 +10,13 @@ using AbrigueSe.Repositories.Interfaces;
 using Microsoft.OpenApi.Models; // Para OpenApiInfo
 using System.Reflection; // Para XmlComments
 using AbrigueSe.MlModels; // Adicionar using para GenerativeAIService
+using AspNetCoreRateLimit; // Adicionado para Rate Limiting
 
 var builder = WebApplication.CreateBuilder(args);
+// Update the code to fix the error
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(); // Adicionado para melhor manipulação de DTOs com herança (HATEOAS)
+
 
 // Add services to the container.
 // Initialize ConfigurationManager with the configuration
@@ -22,13 +27,40 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddNewtonsoftJson(); // Adicionado para melhor manipulação de DTOs com herança (HATEOAS)
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.EnableAnnotations();
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "Abrigue-Se API",
+        Description = "API RESTful para o sistema Abrigue-Se, uma plataforma para gerenciamento de abrigos e assistência em eventos extremos.",
+        Contact = new OpenApiContact
+        {
+            Name = "Equipe Abrigue-Se",
+            Email = "contato@abriguese.com.br", // Exemplo
+            Url = new Uri("https://abriguese.com.br") // Exemplo
+        },
+        License = new OpenApiLicense
+        {
+            Name = "MIT License", // Exemplo
+            Url = new Uri("https://opensource.org/licenses/MIT") // Exemplo
+        }
+    });
+
+    // Configurar Swagger para usar o arquivo XML de comentários
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+    {
+        c.IncludeXmlComments(xmlPath);
+    }
 });
 
 builder.Services.AddDbContext<DataContext>(options =>
@@ -56,6 +88,15 @@ builder.Services.AddSingleton<GenerativeAIService>(); // Registrado como Singlet
 
 builder.Services.AddDataProtection();
 builder.Services.AddSingleton(ConfigManager.Instance);
+
+// Configurações do Rate Limiting
+builder.Services.AddMemoryCache();
+builder.Services.Configure<IpRateLimitOptions>(builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
 
 // --- Google Authentication configuration ---
 builder.Services.AddAuthentication(options =>
@@ -129,6 +170,9 @@ app.UseHttpsRedirection();
 
 app.UseAuthentication(); // <-- Add this line before UseAuthorization
 app.UseAuthorization();
+
+// Adiciona o middleware do Rate Limiting
+app.UseIpRateLimiting();
 
 app.MapControllers();
 

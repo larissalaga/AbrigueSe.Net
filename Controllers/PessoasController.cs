@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace AbrigueSe.Controllers
 {
+    /// <summary>
+    /// Gerencia as operações relacionadas a pessoas.
+    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class PessoasController : ControllerBase
@@ -22,7 +25,35 @@ namespace AbrigueSe.Controllers
             _mapper = mapper;
         }
 
+        private void AddLinksToPessoa(PessoaGetDto pessoaDto)
+        {
+            if (pessoaDto == null) return;
+
+            pessoaDto.Links.Add(new LinkDto(Url.Link(nameof(GetPessoaById), new { id = pessoaDto.IdPessoa }), "self", "GET"));
+            pessoaDto.Links.Add(new LinkDto(Url.Link(nameof(GetPessoaDetailsById), new { id = pessoaDto.IdPessoa }), "details", "GET"));
+            pessoaDto.Links.Add(new LinkDto(Url.Link(nameof(UpdatePessoa), new { id = pessoaDto.IdPessoa }), "update_pessoa", "PUT"));
+            pessoaDto.Links.Add(new LinkDto(Url.Link(nameof(DeletePessoa), new { id = pessoaDto.IdPessoa }), "delete_pessoa", "DELETE"));
+            // Adicionar link para endereço, se aplicável
+            if (pessoaDto.Endereco != null)
+            {
+                // Assumindo que existe um EnderecosController com GetEnderecoById
+                // pessoaDto.Links.Add(new LinkDto(Url.Link("GetEnderecoById", new { controller = "Enderecos", id = pessoaDto.Endereco.IdEndereco }), "endereco", "GET"));
+            }
+            // Adicionar link para abrigo atual, se aplicável
+            if (pessoaDto.AbrigoAtual != null)
+            {
+                // pessoaDto.Links.Add(new LinkDto(Url.Link("GetAbrigoById", new { controller = "Abrigos", id = pessoaDto.AbrigoAtual.IdAbrigo }), "abrigo_atual", "GET"));
+            }
+        }
+
         // POST: api/Pessoas
+        /// <summary>
+        /// Cria uma nova pessoa.
+        /// </summary>
+        /// <param name="pessoaDto">Dados para a criação da pessoa.</param>
+        /// <response code="201">Pessoa criada com sucesso. Retorna a pessoa criada.</response>
+        /// <response code="400">Dados inválidos para a criação da pessoa (ex: CPF duplicado, endereço não encontrado).</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPost]
         [ProducesResponseType(typeof(PessoaGetDto), 201)]
         [ProducesResponseType(400)]
@@ -37,6 +68,7 @@ namespace AbrigueSe.Controllers
             {
                 var pessoaModel = await _pessoaRepository.Create(pessoaDto); // Repositório já retorna o modelo com ID
                 var pessoaGetDto = _mapper.Map<PessoaGetDto>(pessoaModel);
+                AddLinksToPessoa(pessoaGetDto);
                 // O abrigo atual será populado pelo repositório e mapeado pelo AutoMapper
                 return CreatedAtAction(nameof(GetPessoaById), new { id = pessoaGetDto.IdPessoa }, pessoaGetDto);
             }
@@ -51,6 +83,11 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Pessoas/getAll
+        /// <summary>
+        /// Obtém todas as pessoas cadastradas.
+        /// </summary>
+        /// <response code="200">Lista de pessoas retornada com sucesso.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("getAll")] // Rota alterada
         [ProducesResponseType(typeof(List<PessoaGetDto>), 200)]
         [ProducesResponseType(500)]
@@ -60,16 +97,24 @@ namespace AbrigueSe.Controllers
             {
                 var pessoas = await _pessoaRepository.GetAll();
                 var pessoasGetDto = _mapper.Map<List<PessoaGetDto>>(pessoas);
+                pessoasGetDto.ForEach(AddLinksToPessoa);
                 return Ok(pessoasGetDto);
             }
             catch (Exception ex)
             {
-                 if (ex.Message.Contains("Nenhuma pessoa encontrada")) return Ok(new List<PessoaGetDto>()); // Retorna lista vazia se for essa a exceção
+                if (ex.Message.Contains("Nenhuma pessoa encontrada")) return Ok(new List<PessoaGetDto>()); // Retorna lista vazia se for essa a exceção
                 return StatusCode(500, $"Erro interno ao buscar pessoas: {ex.Message}");
             }
         }
 
         // GET: api/Pessoas/{id}
+        /// <summary>
+        /// Obtém uma pessoa específica pelo seu ID.
+        /// </summary>
+        /// <param name="id">ID da pessoa a ser obtida.</param>
+        /// <response code="200">Pessoa retornada com sucesso.</response>
+        /// <response code="404">Pessoa não encontrada.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("{id}")]
         [ProducesResponseType(typeof(PessoaGetDto), 200)]
         [ProducesResponseType(404)]
@@ -81,6 +126,7 @@ namespace AbrigueSe.Controllers
                 var pessoa = await _pessoaRepository.GetById(id);
                 // Repositório já lança exceção se não encontrar, então não precisa checar null aqui.
                 var pessoaGetDto = _mapper.Map<PessoaGetDto>(pessoa);
+                AddLinksToPessoa(pessoaGetDto);
                 return Ok(pessoaGetDto);
             }
             catch (Exception ex)
@@ -94,6 +140,13 @@ namespace AbrigueSe.Controllers
         }
 
         // GET: api/Pessoas/{id}/details
+        /// <summary>
+        /// Obtém detalhes de uma pessoa específica, incluindo informações relacionadas como endereço e abrigo atual.
+        /// </summary>
+        /// <param name="id">ID da pessoa para obter detalhes.</param>
+        /// <response code="200">Detalhes da pessoa retornados com sucesso.</response>
+        /// <response code="404">Pessoa não encontrada.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpGet("{id}/details")]
         [ProducesResponseType(typeof(PessoaGetDto), 200)]
         [ProducesResponseType(404)]
@@ -103,6 +156,7 @@ namespace AbrigueSe.Controllers
             try
             {
                 var pessoaGetDto = await _pessoaRepository.GetDetailsByIdAsync(id);
+                AddLinksToPessoa(pessoaGetDto);
                 return Ok(pessoaGetDto);
             }
             catch (KeyNotFoundException knfex)
@@ -117,6 +171,15 @@ namespace AbrigueSe.Controllers
         }
 
         // PUT: api/Pessoas/{id}
+        /// <summary>
+        /// Atualiza uma pessoa existente.
+        /// </summary>
+        /// <param name="id">ID da pessoa a ser atualizada.</param>
+        /// <param name="pessoaDto">Dados para a atualização da pessoa.</param>
+        /// <response code="200">Pessoa atualizada com sucesso. Retorna a pessoa atualizada.</response>
+        /// <response code="400">Dados inválidos para a atualização (ex: CPF duplicado).</response>
+        /// <response code="404">Pessoa ou endereço relacionado não encontrado.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(PessoaGetDto), 200)]
         [ProducesResponseType(400)]
@@ -132,6 +195,7 @@ namespace AbrigueSe.Controllers
             {
                 var pessoaAtualizada = await _pessoaRepository.UpdateById(id, pessoaDto);
                 var pessoaGetDto = _mapper.Map<PessoaGetDto>(pessoaAtualizada);
+                AddLinksToPessoa(pessoaGetDto);
                 return Ok(pessoaGetDto);
             }
             catch (Exception ex)
@@ -149,6 +213,14 @@ namespace AbrigueSe.Controllers
         }
 
         // DELETE: api/Pessoas/{id}
+        /// <summary>
+        /// Exclui uma pessoa existente.
+        /// </summary>
+        /// <param name="id">ID da pessoa a ser excluída.</param>
+        /// <response code="204">Pessoa excluída com sucesso.</response>
+        /// <response code="400">Não é possível excluir a pessoa devido a restrições (ex: possui check-in ativo ou é um usuário).</response>
+        /// <response code="404">Pessoa não encontrada.</response>
+        /// <response code="500">Erro interno no servidor.</response>
         [HttpDelete("{id}")]
         [ProducesResponseType(204)]
         [ProducesResponseType(404)]
@@ -171,7 +243,7 @@ namespace AbrigueSe.Controllers
                 {
                     return NotFound(ex.Message);
                 }
-                 if (ex.Message.Contains("check-in") || ex.Message.Contains("usuário")) // Erros de FK do repositório
+                if (ex.Message.Contains("check-in") || ex.Message.Contains("usuário")) // Erros de FK do repositório
                 {
                     return BadRequest(ex.Message);
                 }
