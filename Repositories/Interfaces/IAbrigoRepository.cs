@@ -13,5 +13,6 @@ namespace AbrigueSe.Repositories.Interfaces
         Task<Abrigo> UpdateById(int id, AbrigoCreateDto abrigoDto);
         Task<bool> DeleteById(int id);
         Task<AbrigoGetDto> GetDetailsByIdAsync(int id); // New method for detailed view
+        Task<List<Pessoa>> GetPessoasAtivasByAbrigoIdAsync(int id);
     }
 }

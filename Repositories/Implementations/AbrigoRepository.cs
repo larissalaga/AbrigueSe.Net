@@ -170,6 +170,44 @@ namespace AbrigueSe.Repositories.Implementations
 
             return abrigoGetDto;
         }
+        public async Task<List<Pessoa>> GetPessoasAtivasByAbrigoIdAsync(int id)
+        {
+            var abrigoModel = await _context.Abrigo
+                                     .Include(a => a.Endereco)
+                                        .ThenInclude(e => e.Cidade)
+                                            .ThenInclude(c => c.Estado)
+                                                .ThenInclude(es => es.Pais)
+                                     .AsNoTracking()
+                                     .FirstOrDefaultAsync(x => x.IdAbrigo == id);
+
+            if (abrigoModel == null)
+            {
+                throw new KeyNotFoundException($"Abrigo com ID {id} não encontrado.");
+            }
+
+            var abrigoGetDto = _mapper.Map<AbrigoGetDto>(abrigoModel);
+
+            // Buscar os últimos check-ins ativos para cada pessoa neste abrigo
+            var ultimosCheckInsAtivos = await _context.CheckIn
+                .Where(ci => ci.IdAbrigo == id && ci.DtSaida == null)
+                .Include(ci => ci.Pessoa) // Incluir a Pessoa associada ao CheckIn
+                .GroupBy(ci => ci.IdPessoa)
+                .Select(g => g.OrderByDescending(ci => ci.DtEntrada).FirstOrDefault())
+                .ToListAsync();
+
+            // Se houver check-ins, popule as listas no DTO
+            if (ultimosCheckInsAtivos != null && ultimosCheckInsAtivos.Any())
+            {
+                //abrigoGetDto.CheckIns = ultimosCheckInsAtivos.Where(ci => ci != null).ToList();
+                abrigoGetDto.Pessoas = ultimosCheckInsAtivos.Where(ci => ci != null && ci.Pessoa != null).Select(ci => ci.Pessoa).Distinct().ToList();
+            }
+            else
+            {
+                //abrigoGetDto.CheckIns = new List<CheckIn>();
+                abrigoGetDto.Pessoas = new List<Pessoa>();
+            }
+            return abrigoGetDto.Pessoas;
+        }
 
         public async Task<Abrigo> UpdateById(int id, AbrigoCreateDto abrigoDto)
         {

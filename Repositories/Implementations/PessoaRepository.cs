@@ -190,5 +190,38 @@ namespace AbrigueSe.Repositories.Implementations
             await _context.SaveChangesAsync();
             return await GetById(id); 
         }
+
+        public async Task<List<Pessoa>> GetPessoasAtivasByAbrigoIdAsync(int idAbrigo)
+        {
+            // Primeiro, verificar se o abrigo existe para evitar processamento desnecessário
+            // e fornecer um feedback mais claro se o abrigo em si não for encontrado.
+            // (Esta verificação pode ser opcional dependendo se o chamador já valida a existência do abrigo)
+            var abrigoExists = await _context.Abrigo.AnyAsync(a => a.IdAbrigo == idAbrigo);
+            if (!abrigoExists)
+            {
+                // Ou lançar uma exceção específica, ou retornar lista vazia com log.
+                // Lançar exceção pode ser melhor para indicar que o ID do abrigo era inválido.
+                // throw new KeyNotFoundException($"Abrigo com ID {idAbrigo} não encontrado.");
+                // Por ora, retornaremos lista vazia se o abrigo não existir,
+                // consistentes com "nenhuma pessoa ativa encontrada".
+                return new List<Pessoa>();
+            }
+
+            var pessoas = await _context.CheckIn
+                .Where(ci => ci.IdAbrigo == idAbrigo && ci.DtSaida == null)
+                // Incluir explicitamente a entidade Pessoa para garantir que seus dados sejam carregados.
+                // Isso é especialmente útil se Pessoa tiver outras navegações que você precise posteriormente,
+                // embora para DsCondicaoMedica (um campo direto de Pessoa) o Select já deva ser suficiente.
+                .Include(ci => ci.Pessoa)
+                .Select(ci => ci.Pessoa)
+                // Filtrar Pessoas nulas caso haja algum problema de integridade de dados
+                // ou se a relação não for obrigatória (o que não parece ser o caso aqui).
+                .Where(p => p != null)
+                .Distinct()
+                .ToListAsync();
+
+            // ToListAsync() nunca retorna null, retorna uma lista vazia se nada for encontrado.
+            return pessoas;
+        }
     }
 }

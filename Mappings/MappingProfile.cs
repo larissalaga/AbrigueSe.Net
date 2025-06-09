@@ -38,7 +38,8 @@ namespace AbrigueSe.Mappings
                 // você pode adicionar os mapeamentos aqui, mas o método GetDetailsByIdAsync já cuida disso.
                 .ForMember(dest => dest.AbrigoAtual, opt => opt.Ignore()) // Ignora para preenchimento manual
                 .ForMember(dest => dest.Usuario, opt => opt.Ignore())     // Ignora para preenchimento manual
-                .ForMember(dest => dest.UltimoCheckIn, opt => opt.Ignore());// Ignora para preenchimento manual
+                .ForMember(dest => dest.UltimoCheckIn, opt => opt.Ignore()) // Ignora para preenchimento manual
+                .ForMember(dest => dest.DsCondicaoMedica, opt => opt.MapFrom(src => src.DsCondicaoMedica)); // Adicionado mapeamento
                 
 
             // TipoUsuario

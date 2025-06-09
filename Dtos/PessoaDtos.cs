@@ -1,4 +1,4 @@
-﻿using AbrigueSe.Models; // For Abrigo, Usuario, CheckIn model types if used directly
+﻿    using AbrigueSe.Models; // For Abrigo, Usuario, CheckIn model types if used directly
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Collections.Generic;
@@ -130,6 +130,12 @@ namespace AbrigueSe.Dtos
         /// Detalhes do abrigo atual da pessoa, se houver.
         /// </summary>
         public Abrigo? AbrigoAtual { get; set; } // Detalhes do abrigo atual
+        
+        /// <summary>
+        /// Descrição da condição médica da pessoa. Importante para análise de saúde no abrigo.
+        /// </summary>
+        /// <example>Hipertensão, Diabetes tipo 2</example>
+        public string? DsCondicaoMedica { get; set; } // Adicionado para análise de saúde
         public Usuario? Usuario { get; set; } // Detalhes do usuário associado, se houver
         public CheckIn? UltimoCheckIn { get; set; } // Último CheckIn da pessoa, se houver
     }

@@ -13,5 +13,6 @@ namespace AbrigueSe.Repositories.Interfaces
         Task<Pessoa> UpdateById(int id, PessoaDto pessoaDto);
         Task<bool> DeleteById(int id);
         Task<PessoaGetDto> GetDetailsByIdAsync(int id);
+        Task<List<Pessoa>> GetPessoasAtivasByAbrigoIdAsync(int idAbrigo); // Novo método
     }
 }

@@ -139,5 +139,82 @@ namespace AbrigueSe.MlModels
                 return "Ocorreu um erro ao processar a análise de inventário. Tente novamente mais tarde.";
             }
         }
+
+        public async Task<string> GenerateShelterHealthAnalysis(Abrigo abrigo, List<Pessoa> pessoasNoAbrigo)
+        {
+            if (abrigo == null)
+            {
+                throw new ArgumentNullException(nameof(abrigo), "O objeto Abrigo não pode ser nulo.");
+            }
+            if (pessoasNoAbrigo == null)
+            {
+                throw new ArgumentNullException(nameof(pessoasNoAbrigo), "A lista de Pessoas não pode ser nula.");
+            }
+
+            try
+            {
+                var chatCompletionsOptions = new ChatCompletionOptions()
+                {
+                    MaxOutputTokenCount = 4096, // Ajustado para análises de saúde
+                    Temperature = 0.5f, // Um pouco mais determinístico para saúde
+                    TopP = 0.90f,
+                };
+
+                var systemMessage = "Você é um assistente especializado em análise de saúde pública para abrigos em tempos de crise. " +
+                                    "Com base nos dados anonimizados sobre as condições médicas das pessoas em um abrigo, " +
+                                    "identifique padrões de saúde, possíveis riscos (como surtos de doenças transmissíveis se houver sintomas relevantes, ou necessidades de cuidados específicos para grupos com certas condições crônicas), " +
+                                    "e forneça um resumo geral da situação de saúde do abrigo. " +
+                                    "Sugira ações preventivas e recomendações claras para os gestores do abrigo, focando no bem-estar coletivo e na prevenção de problemas de saúde. " +
+                                    "NÃO mencione ou tente identificar indivíduos. A análise deve ser agregada e anonimizada.";
+
+                var userMessageBuilder = new StringBuilder();
+                userMessageBuilder.AppendLine($"Análise de Saúde para o Abrigo: {abrigo.NmAbrigo}");
+                userMessageBuilder.AppendLine($"Número Atual de Pessoas no Abrigo: {abrigo.NrOcupacaoAtual}");
+                userMessageBuilder.AppendLine("\nResumo Anonimizado das Condições Médicas dos Ocupantes:");
+
+                if (pessoasNoAbrigo.Any())
+                {
+                    int personCounter = 1;
+                    foreach (var pessoa in pessoasNoAbrigo)
+                    {
+                        // ANONIMIZAÇÃO: Não usar IDs reais ou nomes. Apenas "Pessoa X" e sua condição.
+                        userMessageBuilder.AppendLine($"- Pessoa {personCounter}: Condição Médica: {(string.IsNullOrWhiteSpace(pessoa.DsCondicaoMedica) ? "Não informada" : pessoa.DsCondicaoMedica)}");
+                        personCounter++;
+                    }
+                }
+                else
+                {
+                    userMessageBuilder.AppendLine("Nenhuma pessoa com check-in ativo encontrada neste abrigo para análise de saúde.");
+                }
+                
+                userMessageBuilder.AppendLine("\nCom base nestes dados anonimizados, por favor, forneça sua análise de saúde agregada e recomendações para o abrigo.");
+
+                List<ChatMessage> messages = new List<ChatMessage>()
+                {
+                    new SystemChatMessage(systemMessage),
+                    new UserChatMessage(userMessageBuilder.ToString())
+                };
+
+                ChatCompletion response = await _chatClient.CompleteChatAsync(messages, chatCompletionsOptions);
+                
+                string healthAnalysis = "Não foi possível gerar uma análise de saúde no momento."; // Mensagem padrão
+                if (response.Content != null && response.Content.Count > 0 && response.Content[0].Text != null)
+                {
+                    healthAnalysis = response.Content[0].Text.Trim();
+                }
+
+                return healthAnalysis;
+            }
+            catch (RequestFailedException rfEx)
+            {
+                Console.WriteLine($"Erro na requisição à API Azure OpenAI (Saúde): {rfEx.Status} - {rfEx.Message}");
+                return $"Erro ao comunicar com o serviço de IA para análise de saúde: {rfEx.Message}";
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erro ao gerar análise de saúde do abrigo: {ex.Message}");
+                return "Ocorreu um erro ao processar a análise de saúde. Tente novamente mais tarde.";
+            }
+        }
     }
 }

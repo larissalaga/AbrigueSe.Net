@@ -56,6 +56,7 @@ O objetivo é fortalecer a resiliência das comunidades, salvar vidas e garantir
 *   Swagger/OpenAPI para documentação da API
 *   AspNetCoreRateLimit para limitação de taxa
 *   Autenticação Google OAuth 2.0
+*   Newtonsoft.Json (para serialização JSON avançada, ex: HATEOAS)
 
 ## Design da API RESTful
 
@@ -74,3 +75,77 @@ Para melhorar a descoberta e navegabilidade da API, implementamos HATEOAS. Isso 
 *   **Geração de Links nos Controllers**: Os controllers são responsáveis por popular a lista `Links` nos DTOs de resposta. Eles utilizam o `UrlHelper` do ASP.NET Core para gerar URLs corretas para as ações e recursos relacionados.
 
 **Exemplo de Resposta com Links HATEOAS (JSON):**
+
+### Rate Limiting (Limitação de Taxa)
+
+Para proteger a API contra abuso, garantir a disponibilidade do serviço e o uso justo, implementamos a limitação de taxa de requisições.
+
+*   **Biblioteca**: Utilizamos a biblioteca `AspNetCoreRateLimit`.
+*   **Configuração**:
+    *   Os serviços necessários para o rate limiting são registrados em `Program.cs` (por exemplo, `AddMemoryCache`, `Configure<IpRateLimitOptions>`, `AddInMemoryRateLimiting`).
+    *   O middleware `UseIpRateLimiting()` é adicionado ao pipeline de requisições em `Program.cs`.
+*   **Regras**: As regras de limitação de taxa são definidas no arquivo `appsettings.json`, na seção `IpRateLimiting`. Atualmente, a limitação é baseada no endereço IP do cliente.
+
+**Exemplo de Configuração de Rate Limiting em `appsettings.json`:**
+
+Quando um cliente excede os limites definidos, a API responderá com o status HTTP `429 Too Many Requests`.
+
+## Configuração e Execução do Projeto
+
+### Pré-requisitos
+
+*   [.NET SDK 9.0](https://dotnet.microsoft.com/download/dotnet/9.0) (ou a versão mais recente utilizada no projeto)
+*   [Git](https://git-scm.com/downloads)
+*   Acesso a uma instância do Oracle Database.
+*   (Opcional) Ferramentas do EF Core: `dotnet tool install --global dotnet-ef`
+
+### 1. Clonar o Repositório
+
+### 2. Configurar `appsettings.json`
+Copie o arquivo `appsettings.example.json` (se existir) para `appsettings.json` ou crie/edite o arquivo `appsettings.json` na raiz do projeto com as seguintes configurações:
+
+**Substitua os placeholders** (SEU_USUARIO, SUA_SENHA, etc.) com seus respectivos valores.
+
+### 3. Configuração do Banco de Dados (Entity Framework Core)
+Se o projeto utiliza Entity Framework Core Migrations para gerenciar o schema do banco de dados:
+1.  Certifique-se de que as ferramentas do EF Core estão instaladas (veja pré-requisitos).
+2.  Abra um terminal na pasta raiz do projeto (onde o arquivo `.csproj` está localizado).
+3.  Execute o comando para aplicar as migrações:```bash
+dotnet ef database update
+```Caso o projeto não utilize migrações ou se você estiver configurando o banco de dados manualmente, garanta que o schema do banco de dados corresponda aos modelos definidos nas entidades do projeto.
+
+### 4. Executar o Projeto
+Abra um terminal na pasta raiz do projeto e execute:
+
+A API estará disponível, por padrão, em `https://localhost:<PORTA_HTTPS>` e `http://localhost:<PORTA_HTTP>`. As portas específicas são definidas no arquivo `launchSettings.json` (dentro da pasta `Properties`).
+
+## Documentação da API (Swagger)
+
+Após iniciar a aplicação, a documentação interativa da API (Swagger UI) estará disponível em:
+`/swagger`
+
+Exemplo: `https://localhost:<PORTA_HTTPS>/swagger`
+
+Em ambiente de desenvolvimento, o acesso ao Swagger UI requer autenticação via Google para proteger os endpoints.
+
+## Estrutura do Projeto (Simplificada)
+
+*   `Controllers/`: Contém os controladores da API.
+*   `Data/`: Contém o `DataContext` do Entity Framework.
+*   `Dtos/`: Contém os Data Transfer Objects.
+*   `Mappings/`: Contém os perfis do AutoMapper.
+*   `Models/`: Contém os modelos de domínio (entidades).
+*   `Repositories/`: Contém as interfaces e implementações dos repositórios.
+*   `Configuration/`: Gerenciamento de configurações.
+*   `MlModels/`: Serviços relacionados a modelos de Machine Learning (ex: `GenerativeAIService`).
+*   `Program.cs`: Ponto de entrada da aplicação e configuração dos serviços e pipeline HTTP.
+*   `appsettings.json`: Arquivo de configuração da aplicação.
+
+## Próximos Passos e Melhorias (Sugestões)
+
+*   Implementar logging mais robusto e centralizado.
+*   Adicionar mais testes unitários e de integração para garantir a qualidade e estabilidade.
+*   Expandir as funcionalidades de acordo com as necessidades da plataforma AbrigueSe.
+*   Considerar estratégias de cache para endpoints frequentemente acessados e com dados menos voláteis.
+*   Refinar o tratamento de erros e exceções, fornecendo mensagens mais específicas e códigos de erro padronizados.
+*   Implementar versionamento da API.
